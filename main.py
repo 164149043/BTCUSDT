@@ -26,8 +26,13 @@ try:
     from combined_data_processor import combine_data  # 新增导入
     from report_generator import generate_trading_report
     from config import DATA_DIR, RAW_DATA_FILENAME, INDICATORS_FILENAME, REPORT_FILENAME, COMBINED_FILENAME, TIMEFRAME_OPTIONS, get_filenames
+    from aggressive_config import AGGRESSIVE_MODE_ENABLED, AGGRESSIVE_MODE_WARNINGS, check_aggressive_mode_conditions  # 激进模式导入
 
     print("✅ 所有模块导入成功")
+    if AGGRESSIVE_MODE_ENABLED:
+        print("🚀 激进交易模式已启用")
+        for warning in AGGRESSIVE_MODE_WARNINGS[:3]:  # 显示前3个警告
+            print(warning)
 except ImportError as e:
     print(f"❌ 模块导入失败: {e}")
     print("请确保以下文件存在于当前目录:")
@@ -245,20 +250,47 @@ def run_test_mode():
 if __name__ == "__main__":
     print("=" * 50)
     print("BTCUSDT多时间周期分析系统")
+    if AGGRESSIVE_MODE_ENABLED:
+        print("🚀 激进交易模式版本")
     print("=" * 50)
     print("选项:")
     print("1. 执行完整分析流程 (支持多时间周期)")
+    if AGGRESSIVE_MODE_ENABLED:
+        print("   🚀 激进模式：更敏感的技术指标和交易建议")
     print("2. 显示文件路径信息")
     print("3. 运行测试模式")
-    print("4. 退出")
-
-    choice = input("\n请选择操作 (1-4): ")
+    if AGGRESSIVE_MODE_ENABLED:
+        print("4. 激进模式配置检查")
+        print("5. 退出")
+        choice = input("\n请选择操作 (1-5): ")
+    else:
+        print("4. 退出")
+        choice = input("\n请选择操作 (1-4): ")
 
     if choice == "1":
         main_analysis_flow()
     elif choice == "2":
         display_file_paths()
     elif choice == "3":
+        run_test_mode()
+    elif choice == "4" and AGGRESSIVE_MODE_ENABLED:
+        # 激进模式配置检查
+        print("\n" + "=" * 50)
+        print("激进模式配置检查")
+        print("=" * 50)
+        from aggressive_config import AGGRESSIVE_TRADING, AGGRESSIVE_THRESHOLDS, MULTI_TIMEFRAME_CONFIRMATION
+        print(f"✓ 激进模式状态: {'启用' if AGGRESSIVE_MODE_ENABLED else '禁用'}")
+        print(f"✓ 最大杠杆: {AGGRESSIVE_TRADING['MAX_LEVERAGE']}倍")
+        print(f"✓ 剥头皮模式: {'启用' if AGGRESSIVE_TRADING['SCALPING_MODE'] else '禁用'}")
+        print(f"✓ RSI极端阈值: 超买>{AGGRESSIVE_THRESHOLDS['RSI_EXTREME_OVERBOUGHT']}, 超卖<{AGGRESSIVE_THRESHOLDS['RSI_EXTREME_OVERSOLD']}")
+        print(f"✓ 多时间框架确认: {'启用' if MULTI_TIMEFRAME_CONFIRMATION['DIVERGENCE_DETECTION'] else '禁用'}")
+        print("\n激进模式警告:")
+        for warning in AGGRESSIVE_MODE_WARNINGS:
+            print(warning)
+    elif choice == ("5" if AGGRESSIVE_MODE_ENABLED else "4"):
+        print("感谢使用BTCUSDT分析系统!")
+        sys.exit(0)
+    elif choice == "3" and not AGGRESSIVE_MODE_ENABLED:
         run_test_mode()
     elif choice == "4":
         print("退出程序")

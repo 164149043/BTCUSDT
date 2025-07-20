@@ -46,12 +46,12 @@ INTERVAL = '1d'          # K线间隔 (默认日线)
 KLINE_LIMIT = 120        # 每次请求获取的K线数量 (默认120条数据)
 USE_TESTNET = False      # 是否使用测试网络
 
-# 时间周期配置
+# 时间周期配置 - 优化数据量到220条
 TIMEFRAME_OPTIONS = {
-    '1': {'interval': '15m', 'name': '15分钟线', 'limit': 200, 'desc': '最近2天'},    # 200个15分钟 ≈ 2天
-    '2': {'interval': '1h', 'name': '1小时线', 'limit': 200, 'desc': '最近8天'},     # 200小时 ≈ 8天
-    '3': {'interval': '4h', 'name': '4小时线', 'limit': 200, 'desc': '最近33天'},     # 200*4小时 ≈ 33天
-    '4': {'interval': '1d', 'name': '日线', 'limit': 200, 'desc': '最近200天'}        # 200天
+    '1': {'interval': '15m', 'name': '15分钟线', 'limit': 220, 'desc': '最近2.3天'},   # 220个15分钟 ≈ 2.3天
+    '2': {'interval': '1h', 'name': '1小时线', 'limit': 220, 'desc': '最近9.2天'},    # 220小时 ≈ 9.2天
+    '3': {'interval': '4h', 'name': '4小时线', 'limit': 220, 'desc': '最近36.7天'},   # 220*4小时 ≈ 36.7天
+    '4': {'interval': '1d', 'name': '日线', 'limit': 220, 'desc': '最近220天'}        # 220天
 }
 
 # --------------------------
@@ -109,71 +109,104 @@ ATR_PERIOD = 14       # 平均真实波幅周期
 # ADX参数
 ADX_PERIOD = 14       # ADX计算周期
 
-# 针对不同时间周期优化的技术指标参数
+# 针对不同时间周期优化的技术指标参数 (300条数据优化版)
 TIMEFRAME_INDICATOR_PARAMS = {
     '15分钟线': {
-        'description': '短线交易，使用更敏感的参数',
-        'MA_SHORT_TERM': 10,
-        'MA_LONG_TERM': 30,
-        'MACD_FAST': 8,
-        'MACD_SLOW': 17,
-        'MACD_SIGNAL': 9,
-        'RSI_PERIOD': 9,
-        'BB_PERIOD': 15,
-        'BB_STD_DEV': 2,
-        'STOCH_FASTK': 9,
+        'description': '激进短线交易，极敏感参数 (300条数据优化)',
+        'MA_SHORT_TERM': 8,      # 快速MA
+        'MA_MEDIUM_TERM': 21,    # 中期MA
+        'MA_LONG_TERM': 55,      # 长期MA (新增，利用300条数据)
+        'MACD_FAST': 5,          # 极快的MACD快线
+        'MACD_SLOW': 13,         # 更快的MACD慢线
+        'MACD_SIGNAL': 5,        # 更快的信号线
+        'RSI_PERIOD': 7,         # 主RSI
+        'RSI_SECONDARY': 14,     # 辅助RSI确认 (新增)
+        'RSI_LONG': 21,          # 长期RSI过滤 (新增)
+        'BB_PERIOD': 12,         # 短期布林带
+        'BB_LONG_PERIOD': 30,    # 长期布林带 (新增)
+        'BB_STD_DEV': 1.8,       # 更紧的布林带
+        'STOCH_FASTK': 7,        # 更快的随机指标
         'STOCH_SLOWK': 3,
         'STOCH_SLOWD': 3,
-        'ATR_PERIOD': 10,
-        'ADX_PERIOD': 10
+        'ATR_PERIOD': 8,         # 短期ATR
+        'ATR_LONG_PERIOD': 21,   # 长期ATR (新增)
+        'ADX_PERIOD': 8,
+        'FIB_LOOKBACK_PERIOD': 30  # 斐波那契回看周期 (短期)
     },
     '1小时线': {
-        'description': '短中期分析，平衡敏感性和稳定性',
-        'MA_SHORT_TERM': 12,
-        'MA_LONG_TERM': 26,
-        'MACD_FAST': 9,
-        'MACD_SLOW': 21,
-        'MACD_SIGNAL': 7,
-        'RSI_PERIOD': 11,
-        'BB_PERIOD': 16,
-        'BB_STD_DEV': 2,
-        'STOCH_FASTK': 11,
+        'description': '激进短中期分析，多层次确认 (300条数据优化)',
+        'MA_SHORT_TERM': 9,      # 快速MA
+        'MA_MEDIUM_TERM': 21,    # 中期MA
+        'MA_LONG_TERM': 89,      # 长期MA (新增，斐波那契数列)
+        'MACD_FAST': 6,          # 快速MACD
+        'MACD_SLOW': 15,         # 标准MACD
+        'MACD_SIGNAL': 5,        # 快信号线
+        'MACD_LONG_FAST': 12,    # 长期MACD快线 (新增)
+        'MACD_LONG_SLOW': 26,    # 长期MACD慢线 (新增)
+        'RSI_PERIOD': 9,         # 主RSI
+        'RSI_SECONDARY': 14,     # 标准RSI
+        'RSI_LONG': 30,          # 长期RSI (新增)
+        'BB_PERIOD': 14,         # 短期布林带
+        'BB_LONG_PERIOD': 50,    # 长期布林带 (新增)
+        'BB_STD_DEV': 1.9,       # 标准差
+        'STOCH_FASTK': 9,        # 快速随机指标
         'STOCH_SLOWK': 3,
         'STOCH_SLOWD': 3,
-        'ATR_PERIOD': 12,
-        'ADX_PERIOD': 12
+        'ATR_PERIOD': 10,        # 短期ATR
+        'ATR_LONG_PERIOD': 30,   # 长期ATR (新增)
+        'ADX_PERIOD': 10,
+        'FIB_LOOKBACK_PERIOD': 40  # 斐波那契回看周期 (中期)
     },
     '4小时线': {
-        'description': '中期分析，使用标准参数',
-        'MA_SHORT_TERM': 20,
-        'MA_LONG_TERM': 50,
-        'MACD_FAST': 12,
+        'description': '中期分析，标准+长期指标组合 (300条数据优化)',
+        'MA_SHORT_TERM': 20,     # 标准短期MA
+        'MA_MEDIUM_TERM': 50,    # 标准中期MA
+        'MA_LONG_TERM': 144,     # 长期MA (斐波那契数列)
+        'MACD_FAST': 12,         # 标准MACD
         'MACD_SLOW': 26,
         'MACD_SIGNAL': 9,
-        'RSI_PERIOD': 14,
-        'BB_PERIOD': 20,
+        'MACD_LONG_FAST': 19,    # 保守MACD (新增)
+        'MACD_LONG_SLOW': 39,    # 保守MACD (新增)
+        'RSI_PERIOD': 14,        # 标准RSI
+        'RSI_LONG': 21,          # 长期RSI
+        'RSI_EXTRA_LONG': 50,    # 超长期RSI (新增)
+        'BB_PERIOD': 20,         # 标准布林带
+        'BB_LONG_PERIOD': 89,    # 长期布林带 (新增)
         'BB_STD_DEV': 2,
         'STOCH_FASTK': 14,
         'STOCH_SLOWK': 3,
         'STOCH_SLOWD': 3,
-        'ATR_PERIOD': 14,
-        'ADX_PERIOD': 14
+        'ATR_PERIOD': 14,        # 标准ATR
+        'ATR_LONG_PERIOD': 50,   # 长期ATR (新增)
+        'ADX_PERIOD': 14,
+        'FIB_LOOKBACK_PERIOD': 60  # 斐波那契回看周期 (长期)
     },
     '日线': {
-        'description': '长期分析，使用稍长周期参数减少噪音',
-        'MA_SHORT_TERM': 21,
-        'MA_LONG_TERM': 55,
-        'MACD_FAST': 12,
+        'description': '长期分析，多层次MA系统 (220条数据优化)',
+        'MA_SHORT_TERM': 21,     # 短期MA
+        'MA_MEDIUM_TERM': 55,    # 中期MA
+        'MA_LONG_TERM': 150,     # 长期MA (从200调整为150)
+        'MA_EXTRA_LONG': 200,    # 超长期MA (从300调整为200)
+        'MACD_FAST': 12,         # 标准MACD
         'MACD_SLOW': 26,
         'MACD_SIGNAL': 9,
-        'RSI_PERIOD': 14,
-        'BB_PERIOD': 21,
+        'MACD_LONG_FAST': 19,    # 长期MACD
+        'MACD_LONG_SLOW': 39,
+        'MACD_LONG_SIGNAL': 9,
+        'RSI_PERIOD': 14,        # 标准RSI
+        'RSI_LONG': 21,          # 长期RSI
+        'RSI_EXTRA_LONG': 50,    # 超长期RSI
+        'BB_PERIOD': 21,         # 标准布林带
+        'BB_LONG_PERIOD': 89,    # 长期布林带 (从100调整为89)
         'BB_STD_DEV': 2,
         'STOCH_FASTK': 14,
         'STOCH_SLOWK': 3,
         'STOCH_SLOWD': 3,
-        'ATR_PERIOD': 14,
-        'ADX_PERIOD': 14
+        'STOCH_LONG_FASTK': 21,  # 长期随机指标
+        'ATR_PERIOD': 14,        # 标准ATR
+        'ATR_LONG_PERIOD': 50,   # 长期ATR
+        'ADX_PERIOD': 14,
+        'FIB_LOOKBACK_PERIOD': 80  # 斐波那契回看周期 (从100调整为80)
     }
 }
 
@@ -196,20 +229,29 @@ def get_indicator_params(timeframe_name):
     })
 
 # --------------------------
-# 交易策略参数
+# 交易策略参数 (激进化配置)
 # --------------------------
-# 信号阈值
-RSI_OVERBOUGHT = 70   # RSI超买阈值
-RSI_OVERSOLD = 30     # RSI超卖阈值
+# 信号阈值 - 激进化设置
+RSI_OVERBOUGHT = 75   # RSI超买阈值 (从70调整为75，更激进)
+RSI_OVERSOLD = 25     # RSI超卖阈值 (从30调整为25，更激进)
+RSI_STRONG_BUY = 35   # RSI强买入信号阈值 (新增)
+RSI_STRONG_SELL = 65  # RSI强卖出信号阈值 (新增)
 
-# 综合信号权重
+# 综合信号权重 - 激进化配置 (增加短期指标权重)
 SIGNAL_WEIGHTS = {
-    'MA': 0.3,
-    'MACD': 0.25,
-    'RSI': 0.2,
-    'BB': 0.15,
-    'VOLUME': 0.1
+    'MA': 0.25,      # 减少长期MA权重
+    'MACD': 0.3,     # 增加MACD权重 (更敏感)
+    'RSI': 0.25,     # 增加RSI权重
+    'BB': 0.15,      # 保持布林带权重
+    'VOLUME': 0.05   # 减少成交量权重
 }
+
+# 激进交易参数
+AGGRESSIVE_MODE = True        # 激进模式开关
+SCALPING_MODE = True         # 剥头皮模式
+MIN_SIGNAL_STRENGTH = 0.6    # 最小信号强度 (从0.7降低到0.6)
+ATR_STOP_MULTIPLIER = 1.5    # ATR止损倍数 (从2.0降低到1.5，更紧的止损)
+ATR_TARGET_MULTIPLIER = 3.0  # ATR目标倍数 (更大的盈亏比)
 
 # --------------------------
 # 日志配置

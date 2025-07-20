@@ -94,15 +94,27 @@ def combine_data(raw_filename=None, indicators_filename=None, combined_filename=
             validate='one_to_one'
         )
 
-        # 定义要移除的列
+        # 定义要移除的列 (清理多余和中间计算数据)
         columns_to_remove = [
+            # 信号分析列 (文本信号，非数值数据)
             '计算时间',
             'MA_Signal',
             'MACD_Signal_Analysis',
             'RSI_Signal',
             'BB_Signal',
             'Stoch_Signal',
-            '综合信号'
+            '综合信号',
+
+            # 中间计算数据 (非核心指标)
+            'BB_Squeeze',           # 布林带挤压标志 (您要求移除)
+            'BB_Width',             # 布林带宽度 (中间计算数据)
+
+            # 重复的MA列 (保留标准命名)
+            'MA8', 'MA21', 'MA55',  # 移除动态命名的MA，保留MA20, MA50, MA_LONG
+
+            # 其他可能的多余列
+            'MACD_Long_Hist',       # 如果存在长期MACD柱状图
+            'RSI_Extra_Long',       # 如果存在超长期RSI且不需要
         ]
 
         # 移除不需要的列（如果存在的话）
@@ -110,6 +122,9 @@ def combine_data(raw_filename=None, indicators_filename=None, combined_filename=
         if existing_columns_to_remove:
             combined_df = combined_df.drop(columns=existing_columns_to_remove)
             print(f"🗑️ 已移除列: {', '.join(existing_columns_to_remove)}")
+
+        # 数据清理和验证
+        combined_df = clean_and_validate_data(combined_df)
 
         # 按时间排序
         combined_df.sort_values(time_col, ascending=True, inplace=True)
@@ -135,6 +150,76 @@ def combine_data(raw_filename=None, indicators_filename=None, combined_filename=
     except Exception as e:
         print(f"❌ 文件保存失败: {e}")
         return None
+
+def clean_and_validate_data(df):
+    """
+    清理和验证组合数据
+    参数:
+        df: 组合后的DataFrame
+    返回:
+        DataFrame: 清理后的数据
+    """
+    print("🧹 数据清理和验证中...")
+
+    # 1. 检查重复列
+    duplicate_columns = df.columns[df.columns.duplicated()].tolist()
+    if duplicate_columns:
+        print(f"⚠️ 发现重复列名: {duplicate_columns}")
+        df = df.loc[:, ~df.columns.duplicated()]
+        print("✅ 已移除重复列")
+
+    # 2. 检查空值过多的列 (超过50%为空值的列)
+    null_percentage = df.isnull().sum() / len(df)
+    high_null_columns = null_percentage[null_percentage > 0.5].index.tolist()
+    if high_null_columns:
+        print(f"⚠️ 发现高空值列 (>50%): {high_null_columns}")
+        # 可选择移除或保留，这里选择保留但给出警告
+
+    # 3. 标准化列名顺序 (将重要列放在前面)
+    preferred_order = [
+        'open_time',           # 时间
+        '开盘价', '最高价', '最低价', '收盘价',  # OHLC
+        '成交量', '成交额', '成交笔数',          # 成交量数据
+        '主动买入量', '主动买入额',             # 买入数据
+        'MA20', 'MA50', 'MA_LONG',            # 移动平均线
+        'MACD', 'MACD_Signal', 'MACD_Hist',   # MACD
+        'RSI', 'RSI_Secondary', 'RSI_Long',   # RSI系列
+        'BB_Upper', 'BB_Middle', 'BB_Lower',  # 布林带
+        'BB_Long_Upper', 'BB_Long_Middle', 'BB_Long_Lower',  # 长期布林带
+        'Stoch_SlowK', 'Stoch_SlowD',         # 随机指标
+        'OBV',                                # 成交量指标
+        'ATR', 'ATR_Long', 'ATR_Ratio',       # ATR系列
+        'ADX',                                # 趋势指标
+        # 斐波那契水平 (按重要性排序)
+        'Fib_Ret_0.382', 'Fib_Ret_0.500', 'Fib_Ret_0.618',  # 关键回调水平
+        'Fib_Ret_0.236', 'Fib_Ret_0.786', 'Fib_Ret_0.000', 'Fib_Ret_1.000',  # 其他回调水平
+        'Fib_Ext_1.272', 'Fib_Ext_1.414',    # 保留的扩展水平 (移除1.618, 2.0, 2.618)
+        'Fib_Trend', 'Fib_High', 'Fib_Low',  # 斐波那契趋势和关键点
+        'Fib_Signal', 'Fib_Support_Level', 'Fib_Resistance_Level', 'Fib_Price_Position'  # 斐波那契信号
+    ]
+
+    # 重新排列列顺序
+    existing_preferred = [col for col in preferred_order if col in df.columns]
+    other_columns = [col for col in df.columns if col not in preferred_order]
+    new_column_order = existing_preferred + other_columns
+
+    df = df[new_column_order]
+    print(f"✅ 列顺序已优化，核心指标前置")
+
+    # 4. 数据类型优化
+    numeric_columns = df.select_dtypes(include=['float64']).columns
+    if len(numeric_columns) > 0:
+        # 将float64转换为float32以节省内存，但保留时间列为原始类型
+        time_columns = ['open_time']
+        numeric_columns_to_convert = [col for col in numeric_columns if col not in time_columns]
+        if numeric_columns_to_convert:
+            df[numeric_columns_to_convert] = df[numeric_columns_to_convert].astype('float32')
+            print(f"✅ 已优化{len(numeric_columns_to_convert)}个数值列的数据类型 (float64→float32)")
+
+    # 5. 最终验证
+    print(f"✅ 数据清理完成: {len(df)}行 × {len(df.columns)}列")
+
+    return df
 
 def display_combined_data_preview(file_path, num_rows=5):
     """
