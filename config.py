@@ -46,12 +46,13 @@ INTERVAL = '1d'          # K线间隔 (默认日线)
 KLINE_LIMIT = 120        # 每次请求获取的K线数量 (默认120条数据)
 USE_TESTNET = False      # 是否使用测试网络
 
-# 时间周期配置 - 优化数据量到220条
+# 时间周期配置 - 优化数据量到200条
 TIMEFRAME_OPTIONS = {
-    '1': {'interval': '15m', 'name': '15分钟线', 'limit': 220, 'desc': '最近2.3天'},   # 220个15分钟 ≈ 2.3天
-    '2': {'interval': '1h', 'name': '1小时线', 'limit': 220, 'desc': '最近9.2天'},    # 220小时 ≈ 9.2天
-    '3': {'interval': '4h', 'name': '4小时线', 'limit': 220, 'desc': '最近36.7天'},   # 220*4小时 ≈ 36.7天
-    '4': {'interval': '1d', 'name': '日线', 'limit': 220, 'desc': '最近220天'}        # 220天
+    '1': {'interval': '15m', 'name': '15分钟线', 'limit': 200, 'desc': '最近2.1天'},   # 200个15分钟 ≈ 2.1天
+    '2': {'interval': '1h', 'name': '1小时线', 'limit': 200, 'desc': '最近8.3天'},    # 200小时 ≈ 8.3天
+    '3': {'interval': '4h', 'name': '4小时线', 'limit': 200, 'desc': '最近33.3天'},   # 200*4小时 ≈ 33.3天
+    '4': {'interval': '1d', 'name': '日线', 'limit': 200, 'desc': '最近200天'},        # 200天
+    '5': {'interval': '1w', 'name': '周线', 'limit': 200, 'desc': '最近200周'}         # 200周 ≈ 3.8年
 }
 
 # --------------------------
@@ -182,11 +183,11 @@ TIMEFRAME_INDICATOR_PARAMS = {
         'FIB_LOOKBACK_PERIOD': 60  # 斐波那契回看周期 (长期)
     },
     '日线': {
-        'description': '长期分析，多层次MA系统 (220条数据优化)',
+        'description': '长期分析，多层次MA系统 (200条数据优化)',
         'MA_SHORT_TERM': 21,     # 短期MA
         'MA_MEDIUM_TERM': 55,    # 中期MA
-        'MA_LONG_TERM': 150,     # 长期MA (从200调整为150)
-        'MA_EXTRA_LONG': 200,    # 超长期MA (从300调整为200)
+        'MA_LONG_TERM': 100,     # 长期MA (调整为100，经典参数)
+        'MA_EXTRA_LONG': 150,    # 超长期MA (调整为150)
         'MACD_FAST': 12,         # 标准MACD
         'MACD_SLOW': 26,
         'MACD_SIGNAL': 9,
@@ -197,7 +198,7 @@ TIMEFRAME_INDICATOR_PARAMS = {
         'RSI_LONG': 21,          # 长期RSI
         'RSI_EXTRA_LONG': 50,    # 超长期RSI
         'BB_PERIOD': 21,         # 标准布林带
-        'BB_LONG_PERIOD': 89,    # 长期布林带 (从100调整为89)
+        'BB_LONG_PERIOD': 89,    # 长期布林带
         'BB_STD_DEV': 2,
         'STOCH_FASTK': 14,
         'STOCH_SLOWK': 3,
@@ -206,7 +207,35 @@ TIMEFRAME_INDICATOR_PARAMS = {
         'ATR_PERIOD': 14,        # 标准ATR
         'ATR_LONG_PERIOD': 50,   # 长期ATR
         'ADX_PERIOD': 14,
-        'FIB_LOOKBACK_PERIOD': 80  # 斐波那契回看周期 (从100调整为80)
+        'FIB_LOOKBACK_PERIOD': 70  # 斐波那契回看周期 (调整为70)
+    },
+
+    '周线': {
+        'description': '超长期分析，宏观趋势判断 (200周≈3.8年数据)',
+        'MA_SHORT_TERM': 10,     # 短期MA (10周≈2.5个月)
+        'MA_MEDIUM_TERM': 26,    # 中期MA (26周≈6个月)
+        'MA_LONG_TERM': 52,      # 长期MA (52周≈1年)
+        'MA_EXTRA_LONG': 104,    # 超长期MA (104周≈2年)
+        'MACD_FAST': 12,         # 标准MACD
+        'MACD_SLOW': 26,
+        'MACD_SIGNAL': 9,
+        'MACD_LONG_FAST': 8,     # 长期MACD (周线适配)
+        'MACD_LONG_SLOW': 21,
+        'MACD_LONG_SIGNAL': 5,
+        'RSI_PERIOD': 14,        # 标准RSI
+        'RSI_LONG': 21,          # 长期RSI
+        'RSI_EXTRA_LONG': 30,    # 超长期RSI (周线适配)
+        'BB_PERIOD': 20,         # 标准布林带
+        'BB_LONG_PERIOD': 52,    # 长期布林带 (1年)
+        'BB_STD_DEV': 2,
+        'STOCH_FASTK': 14,
+        'STOCH_SLOWK': 3,
+        'STOCH_SLOWD': 3,
+        'STOCH_LONG_FASTK': 21,  # 长期随机指标
+        'ATR_PERIOD': 14,        # 标准ATR
+        'ATR_LONG_PERIOD': 26,   # 长期ATR (半年)
+        'ADX_PERIOD': 14,
+        'FIB_LOOKBACK_PERIOD': 100  # 斐波那契回看周期 (约2年)
     }
 }
 

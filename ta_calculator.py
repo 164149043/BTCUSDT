@@ -25,6 +25,20 @@ try:
 
     print("✅ 成功导入 config 模块")
 
+    # ===== 在参数部分添加激进模式配置 =====
+    try:
+        from config import AGGRESSIVE_MODE_ENABLED, AGGRESSIVE_SIGNAL_WEIGHTS
+    except ImportError:
+        AGGRESSIVE_MODE_ENABLED = False
+        AGGRESSIVE_SIGNAL_WEIGHTS = {
+            'MA': 1.2,
+            'MACD': 1.3,
+            'RSI': 1.4,
+            'BB': 1.2,
+            'FIB': 1.5
+        }
+        print("⚠️ 使用内置激进模式配置")
+
     # 尝试导入激进模式配置
     try:
         from aggressive_config import (
@@ -36,7 +50,8 @@ try:
             print("🚀 激进模式配置已加载")
     except ImportError:
         AGGRESSIVE_AVAILABLE = False
-        AGGRESSIVE_MODE_ENABLED = False
+        if not 'AGGRESSIVE_MODE_ENABLED' in locals():
+            AGGRESSIVE_MODE_ENABLED = False
         print("ℹ️ 激进模式配置未找到，使用标准模式")
 except ImportError as e:
     print(f"❌ 导入 config 模块失败: {e}")
@@ -84,6 +99,17 @@ def calculate_indicators(raw_filename=None, indicators_filename=None, timeframe_
             'BB_PERIOD': BB_PERIOD,
             'BB_STD_DEV': BB_STD_DEV
         }
+
+    # ===== 在calculate_indicators函数中启用激进模式 =====
+    # 应用激进模式参数覆盖
+    if AGGRESSIVE_MODE_ENABLED:
+        print("🚀 应用激进模式参数优化")
+        # 缩短所有主要指标周期
+        params['MA_SHORT_TERM'] = max(5, int(params.get('MA_SHORT_TERM', MA_SHORT_TERM) * 0.7))
+        params['MA_LONG_TERM'] = max(10, int(params.get('MA_LONG_TERM', MA_LONG_TERM) * 0.8))
+        params['MACD_FAST'] = max(8, int(params.get('MACD_FAST', MACD_FAST) * 0.7))
+        params['MACD_SLOW'] = max(18, int(params.get('MACD_SLOW', MACD_SLOW) * 0.7))
+        params['RSI_PERIOD'] = max(7, int(params.get('RSI_PERIOD', RSI_PERIOD) * 0.7))
 
     # 1. 确定文件路径
     if raw_filename:
@@ -157,6 +183,7 @@ def convert_data_types(df):
     return df
 
 
+# ===== 修改compute_ta_indicators函数 =====
 def compute_ta_indicators(df, params=None):
     """
     使用TA-Lib计算技术指标
@@ -185,10 +212,13 @@ def compute_ta_indicators(df, params=None):
     low = df['最低价'].values
     volume = df['成交量'].values
 
-    # 1. 移动平均线系统 (300条数据优化版)
-    ma_short = params.get('MA_SHORT_TERM', MA_SHORT_TERM)
+    # 1. 移动平均线系统 - 使用更短周期
+    ma_short = max(5, int(params.get('MA_SHORT_TERM', MA_SHORT_TERM) * 0.7))  # 缩短30%
     ma_medium = params.get('MA_MEDIUM_TERM', params.get('MA_LONG_TERM', MA_LONG_TERM))
-    ma_long = params.get('MA_LONG_TERM', MA_LONG_TERM)
+    ma_long = max(10, int(params.get('MA_LONG_TERM', MA_LONG_TERM) * 0.8))  # 缩短20%
+
+    # 增加超短期均线 (3日)
+    df['MA3'] = talib.MA(close, timeperiod=3)
 
     # 基础MA计算
     df[f'MA{ma_short}'] = talib.MA(close, timeperiod=ma_short)
@@ -211,10 +241,9 @@ def compute_ta_indicators(df, params=None):
     if ma_long > 50:
         df['MA_LONG'] = df[f'MA{ma_long}']
 
-    # 2. 多重MACD系统 (300条数据优化版)
-    # 主MACD
-    macd_fast = params.get('MACD_FAST', MACD_FAST)
-    macd_slow = params.get('MACD_SLOW', MACD_SLOW)
+    # 2. MACD - 使用更灵敏的参数
+    macd_fast = max(8, int(params.get('MACD_FAST', MACD_FAST) * 0.7))  # 缩短30%
+    macd_slow = max(18, int(params.get('MACD_SLOW', MACD_SLOW) * 0.7))  # 缩短30%
     macd_signal = params.get('MACD_SIGNAL', MACD_SIGNAL)
     macd, macd_signal_line, macd_hist = talib.MACD(
         close,
@@ -241,8 +270,8 @@ def compute_ta_indicators(df, params=None):
         df['MACD_Long_Signal'] = macd_long_signal_line
         df['MACD_Long_Hist'] = macd_long_hist
 
-    # 3. 多重RSI系统 (300条数据优化版)
-    rsi_period = params.get('RSI_PERIOD', RSI_PERIOD)
+    # 3. RSI - 使用更短周期
+    rsi_period = max(7, int(params.get('RSI_PERIOD', RSI_PERIOD) * 0.7))  # 缩短30%
     df['RSI'] = talib.RSI(close, timeperiod=rsi_period)
 
     # 辅助RSI (如果定义)
@@ -260,10 +289,9 @@ def compute_ta_indicators(df, params=None):
     if rsi_extra_long and rsi_extra_long <= len(df):
         df['RSI_Extra_Long'] = talib.RSI(close, timeperiod=rsi_extra_long)
 
-    # 4. 多重布林带系统 (300条数据优化版)
-    # 主布林带
+    # 4. 布林带 - 放宽波动范围
     bb_period = params.get('BB_PERIOD', BB_PERIOD)
-    bb_std_dev = params.get('BB_STD_DEV', BB_STD_DEV)
+    bb_std_dev = min(3.0, params.get('BB_STD_DEV', BB_STD_DEV) * 1.5)  # 放宽50%
     upper, middle, lower = talib.BBANDS(
         close,
         timeperiod=bb_period,
@@ -273,6 +301,10 @@ def compute_ta_indicators(df, params=None):
     df['BB_Upper'] = upper
     df['BB_Middle'] = middle
     df['BB_Lower'] = lower
+
+    # 5. 添加成交量指标 - 量价确认
+    df['Volume_MA20'] = talib.MA(volume, timeperiod=20)
+    df['Volume_Ratio'] = volume / df['Volume_MA20']
 
     # 长期布林带 (如果定义)
     bb_long_period = params.get('BB_LONG_PERIOD')
@@ -517,6 +549,14 @@ def add_fibonacci_signals(df):
                 else:
                     signal = 'neutral'
 
+                # 增强信号检测 - 添加成交量确认
+                if signal != 'neutral' and 'Volume_Ratio' in df.columns:
+                    vol_ratio = df['Volume_Ratio'].iloc[i]
+                    if vol_ratio > 1.2:
+                        signal = signal + "_带量"
+                    elif vol_ratio < 0.8:
+                        signal = signal + "_缩量"
+
                 df.loc[df.index[i], 'Fib_Signal'] = signal
 
     print("✅ 斐波那契交易信号生成完成")
@@ -538,42 +578,68 @@ def add_signal_analysis(df, params=None):
             'MA_LONG_TERM': MA_LONG_TERM
         }
 
-    ma_short = params.get('MA_SHORT_TERM', MA_SHORT_TERM)
-    ma_long = params.get('MA_LONG_TERM', MA_LONG_TERM)
+    # 激进模式参数
+    rsi_overbought = 80 if AGGRESSIVE_MODE_ENABLED else 75
+    rsi_oversold = 20 if AGGRESSIVE_MODE_ENABLED else 25
 
-    # 1. 移动平均线交叉信号
-    # 使用动态列名，但保持MA20和MA50作为标准输出
+    # 1. 移动平均线交叉信号 - 增加超短期均线交叉
+    if 'MA3' in df.columns:
+        df['MA_Fast_Signal'] = np.where(
+            df['MA3'] > df['MA20'],
+            '快速金叉',
+            np.where(df['MA3'] < df['MA20'], '快速死叉', '中性')
+        )
+
+    # 保持原有MA信号
     df['MA_Signal'] = np.where(
         df['MA20'] > df['MA50'],
         '金叉',
         np.where(df['MA20'] < df['MA50'], '死叉', '中性')
     )
 
-    # 2. MACD信号
+    # 2. MACD信号 - 增加零轴交叉检测
     df['MACD_Signal_Analysis'] = np.where(
         df['MACD'] > df['MACD_Signal'],
         '看涨',
         np.where(df['MACD'] < df['MACD_Signal'], '看跌', '中性')
     )
 
-    # 3. RSI信号 - 激进化设置
+    df['MACD_Zero_Cross'] = np.select(
+        [
+            (df['MACD'] > 0) & (df['MACD'].shift(1) <= 0),
+            (df['MACD'] < 0) & (df['MACD'].shift(1) >= 0)
+        ],
+        ['零轴上穿', '零轴下穿'],
+        default=''
+    )
+
+    # 3. RSI信号 - 使用更激进的阈值
     df['RSI_Signal'] = np.select(
         [
-            df['RSI'] >= 75,                                    # 极度超买
-            df['RSI'] <= 25,                                    # 极度超卖
-            (df['RSI'] >= 65) & (df['RSI'] < 75),              # 强卖出信号
-            (df['RSI'] <= 35) & (df['RSI'] > 25),              # 强买入信号
-            (df['RSI'] > 50) & (df['RSI'] < 65),               # 看涨区域
-            (df['RSI'] > 35) & (df['RSI'] <= 50)               # 看跌区域
+            df['RSI'] >= rsi_overbought,
+            df['RSI'] <= rsi_oversold,
+            (df['RSI'] >= 70) & (df['RSI'] < rsi_overbought),
+            (df['RSI'] <= 30) & (df['RSI'] > rsi_oversold),
+            (df['RSI'] > 50) & (df['RSI'] < 70),
+            (df['RSI'] > 30) & (df['RSI'] <= 50)
         ],
         ['极度超买', '极度超卖', '强卖出', '强买入', '看涨区域', '看跌区域'],
         default='中性'
     )
 
-    # 4. 布林带信号 - 激进化策略
+    # 4. 布林带信号 - 增加突破强度检测
     # 计算布林带宽度用于挤压检测
     df['BB_Width'] = (df['BB_Upper'] - df['BB_Lower']) / df['BB_Middle']
     df['BB_Squeeze'] = df['BB_Width'] < df['BB_Width'].rolling(20).mean() * 0.8  # 挤压检测
+
+    # 增加成交量确认的突破信号
+    if 'Volume_Ratio' in df.columns:
+        df['BB_Breakout_Strength'] = np.where(
+            (df['收盘价'] > df['BB_Upper']) & (df['Volume_Ratio'] > 1.5),
+            '带量突破上轨',
+            np.where((df['收盘价'] < df['BB_Lower']) & (df['Volume_Ratio'] > 1.5),
+                    '带量突破下轨', '')
+        )
 
     df['BB_Signal'] = np.select(
         [
@@ -600,6 +666,18 @@ def add_signal_analysis(df, params=None):
         default='中性'
     )
 
+    # 5.5. 斐波那契信号增强
+    if 'Fib_Price_Position' in df.columns:
+        df['Fib_Key_Zone'] = np.select(
+            [
+                (df['Fib_Price_Position'] >= 0.35) & (df['Fib_Price_Position'] <= 0.40),
+                (df['Fib_Price_Position'] >= 0.58) & (df['Fib_Price_Position'] <= 0.62),
+                (df['Fib_Price_Position'] >= 0.75) & (df['Fib_Price_Position'] <= 0.80)
+            ],
+            ['关键支撑区', '反转区', '强势区'],
+            default=''
+        )
+
     # 6. 增强综合信号强度 - 300条数据多层次确认
     # 检查是否有长期指标
     has_long_indicators = 'RSI_Long' in df.columns or 'MACD_Long' in df.columns
@@ -607,6 +685,18 @@ def add_signal_analysis(df, params=None):
     if has_long_indicators:
         # 使用多重时间框架确认的增强信号
         conditions = [
+            # 超强看涨信号 (新增)
+            (df.get('MA_Fast_Signal', '') == '快速金叉') &
+            (df.get('MACD_Zero_Cross', '') == '零轴上穿') &
+            (df.get('Volume_Ratio', 1) > 1.5) &
+            (df.get('Fib_Key_Zone', '') == '关键支撑区'),
+
+            # 超强看跌信号 (新增)
+            (df.get('MA_Fast_Signal', '') == '快速死叉') &
+            (df.get('MACD_Zero_Cross', '') == '零轴下穿') &
+            (df.get('Volume_Ratio', 1) > 1.5) &
+            (df.get('Fib_Key_Zone', '') == '强势区'),
+
             # 超强信号 - 所有时间框架一致 + 激进指标
             (df['MA_Signal'] == '金叉') & (df['MACD_Signal_Analysis'] == '看涨') &
             (df['RSI_Signal'].isin(['强买入', '看涨区域'])) &
@@ -638,7 +728,7 @@ def add_signal_analysis(df, params=None):
             (df['MA_Signal'] == '金叉') & (df['MACD_Signal_Analysis'] == '看涨'),
             (df['MA_Signal'] == '死叉') & (df['MACD_Signal_Analysis'] == '看跌'),
         ]
-        choices = ['超强看涨', '超强看跌', '极强看涨', '极强看跌', '强烈看涨', '强烈看跌', '看涨', '看跌']
+        choices = ['🔥超强看涨', '🔥超强看跌', '超强看涨', '超强看跌', '极强看涨', '极强看跌', '强烈看涨', '强烈看跌', '看涨', '看跌']
     else:
         # 原有的信号逻辑
         conditions = [

@@ -146,6 +146,9 @@ def combine_data(raw_filename=None, indicators_filename=None, combined_filename=
         print(f"✅ 数据合并完成! 文件保存至: {combined_path}")
         print(f"📊 合并后数据维度: {len(combined_df)} 行 × {len(combined_df.columns)} 列")
 
+        # 创建23列精简版本
+        create_23_column_version(combined_df, combined_path, timeframe_name)
+
         return combined_path
     except Exception as e:
         print(f"❌ 文件保存失败: {e}")
@@ -301,3 +304,82 @@ if __name__ == "__main__":
         print(f"❌ 测试失败: {e}")
         import traceback
         traceback.print_exc()
+
+def create_23_column_version(combined_df, combined_path, timeframe_name):
+    """创建23列精简版本"""
+    try:
+        print(f"\n📊 创建{timeframe_name or ''}23列精简版...")
+
+        # 定义23列结构
+        required_columns = [
+            'open_time',           # 1. 时间戳
+            '开盘价',              # 2. 开盘价
+            '最高价',              # 3. 最高价
+            '最低价',              # 4. 最低价
+            '收盘价',              # 5. 收盘价
+            '成交量',              # 6. 成交量
+            'MA20',               # 7. MA20
+            'MA50',               # 8. MA50
+            'MA89',               # 9. MA89 (或MA_LONG)
+            'BB_Upper',           # 10. BB_Upper
+            'BB_Lower',           # 11. BB_Lower
+            'BB_Long_Upper',      # 12. BB_Long_Upper
+            'BB_Long_Lower',      # 13. BB_Long_Lower
+            'MACD_Hist',          # 14. MACD_Hist
+            'RSI',                # 15. RSI
+            'ATR',                # 16. ATR
+            'Fib_Ret_0.382',      # 17. Fib_Ret_0.382
+            'Fib_Ret_0.500',      # 18. Fib_Ret_0.500
+            'Fib_Ret_0.618',      # 19. Fib_Ret_0.618
+            'Fib_Support_Level',  # 20. Fib_Support_Level
+            'Fib_Resistance_Level', # 21. Fib_Resistance_Level
+            'Fib_Price_Position', # 22. Fib_Price_Position
+            'MACD_Long'           # 23. MACD_Long
+        ]
+
+        # 检查可用列并处理列名映射
+        available_columns = []
+        for col in required_columns:
+            if col in combined_df.columns:
+                available_columns.append(col)
+            elif col == 'MA89' and 'MA_LONG' in combined_df.columns:
+                available_columns.append('MA_LONG')
+            elif col == 'BB_Long_Upper' and 'BB_LONG_UPPER' in combined_df.columns:
+                available_columns.append('BB_LONG_UPPER')
+            elif col == 'BB_Long_Lower' and 'BB_LONG_LOWER' in combined_df.columns:
+                available_columns.append('BB_LONG_LOWER')
+
+        if len(available_columns) < 15:  # 至少需要15列核心数据
+            print(f"   ⚠️ 可用列不足: {len(available_columns)}/23，跳过23列版本创建")
+            return
+
+        # 创建23列数据框
+        df_23col = combined_df[available_columns].copy()
+
+        # 重命名列以符合要求
+        column_rename = {
+            'MA_LONG': 'MA89',
+            'BB_LONG_UPPER': 'BB_Long_Upper',
+            'BB_LONG_LOWER': 'BB_Long_Lower'
+        }
+        df_23col = df_23col.rename(columns=column_rename)
+
+        # 优化数据类型
+        numeric_columns = df_23col.select_dtypes(include=['float64']).columns
+        if len(numeric_columns) > 0:
+            df_23col[numeric_columns] = df_23col[numeric_columns].astype('float32')
+
+        # 生成23列文件名
+        original_name = combined_path.stem
+        col23_filename = f"{original_name}_23col.csv"
+        col23_path = combined_path.parent / col23_filename
+
+        # 保存23列文件
+        df_23col.to_csv(col23_path, encoding='utf-8-sig', index=False)
+
+        print(f"✅ 23列精简版已保存: {col23_filename}")
+        print(f"📊 文件大小: {col23_path.stat().st_size / 1024:.1f}KB")
+        print(f"📊 列数: {len(combined_df.columns)} → {len(df_23col.columns)} (减少{len(combined_df.columns) - len(df_23col.columns)}列)")
+
+    except Exception as e:
+        print(f"❌ 创建23列版本失败: {e}")
